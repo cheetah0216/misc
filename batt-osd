@@ -1,0 +1,45 @@
+#!/bin/bash
+
+
+LOG_DATE=$(date "+%B %d %T")
+
+echo "$LOG_DATE: batt-osd: Polling started..." >> /var/log/batt-osd.log
+
+while [ -d /sys/ ]; do
+
+	POWER=$(cat /sys/class/power_supply/BAT1/charge_now)
+	ACAD=$(cat /sys/class/power_supply/ACAD/online)
+
+	LOG_DATE=$(date "+%B %d %T")
+
+	if [ $POWER -lt 50000 ]; then
+		if [ $ACAD != 1 ]; then
+			echo "$LOG_DATE: batt-osd: CRITICAL: Shutting down NOW! ($POWER)" >> /var/log/batt-osd.log
+			/sbin/poweroff
+			exit
+		else
+			echo "$LOG_DATE: batt-osd: CRITICAL: Low Power! ($POWER) Battery is charging..." >> /var/log/batt-osd.log
+			sleep 20	
+	fi
+
+	elif [ $POWER -lt 100000 ]; then
+		if [ $ACAD != 1 ]; then
+			echo "$LOG_DATE: batt-osd: WARNING: Low power! ($POWER)" >> /var/log/batt-osd.log
+			DISPLAY=:0.0 su ian -c 'notify-send -i /usr/share/pixmaps/openbox.png "WARNING - Low power!" "$(acpi)"'
+		fi
+
+		sleep 60
+
+	elif [ $POWER -lt 350000 ]; then
+		echo "$LOG_DATE: batt-osd: WARNING: Low power! ($POWER) Polling suspended for 5 minutes..." >> /var/log/batt-osd.log
+		sleep 300
+
+	elif [ $POWER -lt 700000 ]; then
+
+		echo "$LOG_DATE: batt-osd: Polling suspended for 10 minutes..." >> /var/log/batt-osd.log
+		sleep 600
+	else
+		echo "$LOG_DATE: batt-osd: Polling suspended for 30 minutes..." >> /var/log/batt-osd.log
+		sleep 1800
+	fi
+done
